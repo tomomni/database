@@ -1,17 +1,17 @@
 -- STORED PROCEDURE 1 --
 
 CREATE OR REPLACE FUNCTION PreReqsFor(int, REFCURSOR) RETURNS refcursor AS 
-	$BODY$
-	DECLARE
-	course      int       := $1;
-	resultset   REFCURSOR := $2;
-BEGIN
-	open resultset FOR
-		SELECT prereqnum
-		FROM   prerequisites
-		WHERE  courseNum = course;
-	RETURN resultset;
-END;
+$BODY$
+  DECLARE
+		course      int       := $1;
+		resultset   REFCURSOR := $2;
+	BEGIN
+				open resultset FOR
+				SELECT prereqnum
+				FROM   prerequisites
+				WHERE  courseNum = course;
+		RETURN resultset;
+	END;
 $BODY$ 
 LANGUAGE plpgsql;
 
@@ -29,7 +29,6 @@ $BODY$
 		prereq      int       := $1;
 		resultset   REFCURSOR := $2;
 	BEGIN
-
 			open resultset FOR 
 			SELECT coursenum
 			FROM   prerequisites
