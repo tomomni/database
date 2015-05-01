@@ -1,5 +1,4 @@
--- Create Table Statements -- 
-
+-- Creating people entity and sub-entities as well as inserting data --
 CREATE TABLE people (
   pid		 char(6) not null unique,
   firstname	 text not null,
@@ -8,7 +7,6 @@ CREATE TABLE people (
  primary key(pid)
 );
 
--- function dependencies pid -> firstname, lastname, DateOfBirth
 CREATE TABLE stormtroopers (
  pid		char(6) not null unique references people(pid),
  rank		text not null,
@@ -18,7 +16,6 @@ primary key(pid)
 
 CREATE TABLE pilots (
  pid		char(6) not null unique references people(pid),
- Dshiptype	text not null,
  firstflight	date not null,
 primary key(pid)
 );
@@ -30,31 +27,20 @@ CREATE TABLE managers (
 primary key(pid)
 );
 
-
 CREATE TABLE Bases (
  BaseID			char(5) not null unique,
+ Name			text not null,
  Region			text not null,
  Sector			text not null,
  SSystem		text not null,
+ BaseLocal		text not null,
  ShipCapacity		integer not null,
 primary key(BaseID)
 );
 
-CREATE TABLE Planets (
- BaseID			char(5) not null unique references Bases(BaseID),
- PName			text not null,
-primary key(BaseID)
-);
-
-CREATE TABLE Moons (
- BaseID			char(5) not null unique references Bases(BaseID),
- MName			text not null,
-primary key(BaseID)
-);
 
 CREATE TABLE SpaceStations (
  StationNum		char(5) not null unique,
- SSName			text not null, 
  StationType		text not null,
  CrewCapacity		integer not null,
  BaseID			char(5) not null unique references Bases(BaseID),
@@ -67,26 +53,11 @@ CREATE TABLE Ships (
  ShipNum		char(5) not null unique,
  ShipName		text not null,
  costCREDITS		integer not null,
-primary key(ShipNum)
-);
-
-CREATE TABLE Fighters (
- ShipNum		char(5) not null unique references Ships(ShipNum),
- CrewCapacity		integer not null,
+ CrewCapacity 		integer not null,
  EngineType		text not null,
- QuantityOH		integer not null, 
+ QuantityOH		integer,
 primary key(ShipNum)
 );
-
-CREATE TABLE Bombers (
- ShipNum		char(5) not null unique references Ships(ShipNum),
- CrewCapacity		integer not null,
- CargoCapTons		integer not null,
- EngineType		text not null,
- QuantityOH		integer not null, 
-primary key(ShipNum)
-);
-
 
 CREATE TABLE ShipsDocked (
  ShipNum		char(5) not null references Ships(ShipNum),
@@ -96,9 +67,11 @@ primary key(BaseID,ShipNum)
 );
 
 CREATE TABLE BaseCrew (
- pid			char(6) not null unique references people(pid),
+ pid			char(6) not null references people(pid),
  BaseID			char(5) not null references Bases(BaseID),
-primary key(pid,BaseID)
+ ArrivalDate		date not null,
+ DepartureDate		date,
+primary key(pid,BaseID, ArrivalDate)
 );
 
 CREATE TABLE Armaments (
@@ -116,6 +89,7 @@ CREATE TABLE PersonnelWeapons (
  primary key(pid, WepID)
 );
 
+
 CREATE TABLE StationWeapons (
  StationNum		char(5) not null references SpaceStations(StationNum),
  WepID			char(4) not null references Armaments (WepID),
@@ -123,13 +97,65 @@ CREATE TABLE StationWeapons (
  primary key(StationNum, WepID)
 );
 
--- setting adjustments --
+CREATE TABLE QualifiedToFly (
+ pid			char(6) not null references people(pid),
+ ShipNum		char(5) not null references Ships(ShipNum),
+ primary key(pid, ShipNum)
+);
 
+/* 
+shows the age of every person 
+
+Select date_part('year', age(DateOfBirth))as age, *
+from people;
+
+query that delivers the full name of all stormtroopers who are commanders or corporals --
+
+select firstname, lastname
+from people 
+inner join stormtroopers 
+on people.pid = stormtroopers.pid
+where stormtroopers.rank = 'commander' or stormtroopers.rank = 'corporal';
+
+-- QUERY NOT WORKING, I WANT TO SHOW THE PILOTS WHO HAVE BEEN FLYING FOR MORE THAN 20 YEARS --
+
+Select firstname, lastname
+from people
+inner join pilots
+on people.pid = pilots.pid 
+where ((select date_part('year', age(firstflight)) as yrs
+       from pilots
+	group by yrs 
+	order by yrs DESC) > 20)
+
+-- END OF BROKEN QUERY --
+
+ -- query used to determine who is what --
+select*
+from people
+left outer join stormtroopers
+on people.pid = stormtroopers.pid
+left outer join pilots 
+on people.pid = pilots.pid
+left outer join managers
+on people.pid = managers.pid
+order by people.pid desc;
+-- i used this to figure out which pids were not assigned to be stormtroopers or pilots--
+
+-- query that displays who has how many of each weapon, and what that weapon is --
+select firstname, lastname, WName, QuantityHeld
+from People, Armaments, PersonnelWeapons
+where people.pid = PersonnelWeapons.pid
+and PersonnelWeapons.WepID = Armaments.WepID
+-- tested working at 10:14 4/26 --
+
+*/
+
+show datestyle;
 set datestyle = 'sql, ymd'
 
--- insert statements --
+-- Insert Statements for People -- 
 
---people--
 Insert into people(pid, firstname, lastname, DateOfBirth)
 values ('p00001', 'Anakin', 'Skywalker', '1977-05-25');
 
@@ -184,6 +210,7 @@ values ('p00017', 'CT', '3002', '1971-01-01');
 Insert into people(pid, firstname, lastname, DateOfBirth)
 values ('p00018', 'Ran', 'Harkas', '1981-07-17');
 
+-- Insert Statements for Stormtroopers -- 
 
 Insert into stormtroopers(pid, rank, squadrole)
 values ('p00002', 'corporal', 'leader');
@@ -203,25 +230,27 @@ values ('p00017', 'Private1', 'grenadier');
 Insert into stormtroopers(pid, rank, squadrole)
 values ('p00018', 'sergeant', 'rifleman');
 
+-- Insert data for pilots -- 
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00007', 'Bomber', '1995-09-03');
+Insert into pilots(pid, firstflight)
+values ('p00007', '1995-09-03');
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00009', 'Fighter', '2009-04-26');
+Insert into pilots(pid, firstflight)
+values ('p00009', '2009-04-26');
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00010', 'Fighter', '1989-12-25');
+Insert into pilots(pid, firstflight)
+values ('p00010', '1989-12-25');
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00011', 'Bomber', '1994-02-14');
+Insert into pilots(pid, firstflight)
+values ('p00011', '1994-02-14');
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00012', 'Fighter', '2000-03-01');
+Insert into pilots(pid, firstflight)
+values ('p00012', '2000-03-01');
 
-Insert into pilots(pid, Dshiptype, firstflight)
-values ('p00013', 'Fighter', '1992-06-30');
+Insert into pilots(pid, firstflight)
+values ('p00013', '1992-06-30');
 
+-- Insert Data for managers --
 
 Insert into managers (pid, TitlePrefix, TitleSuffix)
 values ('p00001', 'Darth', 'Vader');
@@ -241,116 +270,73 @@ values ('p00006', 'Imperial', 'General');
 Insert into managers (pid, TitlePrefix, TitleSuffix)
 values ('p00008', 'Imperial', 'General');
 
---Bases--
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0001', 'Deep Core', 'Sector 5','Prakith',20);
+-- Insert data for Bases -- 
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0002', 'Inner Rim', 'Adari Sector','Adim', 100);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, BaseLocal, ShipCapacity)
+values ('B0001','Prakith', 'Deep Core', 'Sector 5','Prakith','Planet', 20);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0003', 'Mid Rim', 'Msst Sector','Garos IV', 225);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0002', 'Adim', 'Inner Rim', 'Adari Sector','Adim','Planet', 100);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0004', 'Outer Rim Territories', 'Kanz Sector','Jerne',30);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0003', 'Garos IV', 'Mid Rim', 'Msst Sector','Garos IV','Planet', 225);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0005', 'Galactic Core', 'Farlax Sector','Nzoth',125);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0004', 'Jerne', 'Outer Rim Territories', 'Kanz Sector','Jerne','Planet',30);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0006', 'Galactic Core', 'Corusca Sector','Coruscant',75);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0005', 'Black Fifteen', 'Galactic Core', 'Farlax Sector','Nzoth','SpaceStation',125);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0007', 'Expansion Region', 'Brak Sector','Genesia',20);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0006','Coruscant', 'Galactic Core', 'Corusca Sector','Coruscant','Planet',75);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0008', 'Outer Rim Territories', 'Atrivis Sector','Horuz',20);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0007','Grimm', 'Expansion Region', 'Brak Sector','Genesia','Moon',20);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0009', 'Outer Rim Territories', 'Moddell Sector','Endor',40);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0008','The Death Star', 'Outer Rim Territories', 'Atrivis Sector','Horuz','SpaceStation',20);
 
-Insert into Bases (BaseID, Region, Sector, SSystem, ShipCapacity)
-values ('B0010', 'Outer Rim Territories', 'Anoat Sector','Hoth',50);
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0009','Endor', 'Outer Rim Territories', 'Moddell Sector','Endor','Moon',40);
 
-Insert into Planets (BaseID, PName)
-values ('B0001','Prakith');
+Insert into Bases (BaseID, Name, Region, Sector, SSystem, Baselocal, ShipCapacity)
+values ('B0010','Hoth','Outer Rim Territories', 'Anoat Sector','Hoth','Planet',50);
 
-Insert into Planets (BaseID, PName)
-values ('B0002','Adim');
+-- Insert data for SpaceStations -- 
 
-Insert into Planets (BaseID, PName)
-values ('B0003','Garos IV');
+Insert into SpaceStations (StationNum,StationType,CrewCapacity,BaseID)
+values ('00015','Repair Yard',200,'B0005');
 
-Insert into Planets (BaseID, PName)
-values ('B0004','Jerne');
+Insert into SpaceStations (StationNum,StationType,CrewCapacity,BaseID)
+values ('10000','Battle Station',12000,'B0008');
 
-Insert into Planets (BaseID, PName)
-values ('B0006','Coruscant');
+-- Insert data for ships --
 
-Insert into Planets (BaseID, PName)
-values ('B0010','Hoth');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0001', 'TIE/LN starfighter', '60000', 2, 'SFS P-s4 twin ion', 212);
 
-Insert into Moons (BaseID, MName)
-values ('B0007','Grimm');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0002', 'TIE/SA bomber', '65000', 1, 'SFS P-s4 twin ion', 141);
 
-Insert into Moons (BaseID, MName)
-values ('B0009','Endor');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0003', 'TIE/IN interceptor', '72000', 1, 'SFS P-s5.6 twin ion', 71);
 
-Insert into SpaceStations (StationNum,SSName,StationType,CrewCapacity,BaseID)
-values ('00015','Black Fifteen','Repair Yard',200,'B0005');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0004', 'TIE/X1 advanced', '90000', 1, 'SFS P-s5.6 twin ion', 70);
 
-Insert into SpaceStations (StationNum,SSName,StationType,CrewCapacity,BaseID)
-values ('10000','The Death Star','Battle Station',12000,'B0008');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0005', 'Scimitar assualt bomber', '71500', 2, 'Single SFS P-s4 ion', 35);
 
---ships--
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0001', 'TIE/LN starfighter', '60000');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0006', 'Neutralizer-class bomber', '83000', 1, 'single E-16/x ion', 35);
 
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0002', 'TIE/SA bomber', '65000');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0007', 'TIE/D automated fighter', '170000', 0, 'SFS P-s4 twin ion', 35);
 
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0003', 'TIE/IN interceptor', '72000');
+Insert into Ships (ShipNum, ShipName, costCREDITS, CrewCapacity, EngineType, QuantityOH)
+values ('s0008', 'Starhunter', '100000', 1, 'SFS P-s7.2 twin ion', 35);
 
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0004', 'TIE/X1 advanced', '90000');
-
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0005', 'Scimitar assualt bomber', '71500');
-
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0006', 'Neutralizer-class bomber', '83000');
-
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0007', 'TIE/D automated fighter', '170000');
-
-Insert into Ships (ShipNum, ShipName, costCREDITS)
-values ('s0008', 'Starhunter', '100000');
-
-Insert into Fighters (ShipNum, CrewCapacity, EngineType, QuantityOH)
-values ('s0001', 2, 'SFS P-s4 twin ion', 212);
-
-Insert into Fighters (ShipNum, CrewCapacity, EngineType, QuantityOH)
-values ('s0003', 1, 'SFS P-s5.6 twin ion', 71);
-
-Insert into Fighters (ShipNum, CrewCapacity, EngineType, QuantityOH)
-values ('s0004', 1, 'SFS P-s5.6 twin ion', 70);
-
-Insert into Fighters (ShipNum, CrewCapacity, EngineType, QuantityOH)
-values ('s0007', 0, 'SFS P-s4 twin ion', 35);
-
-Insert into Fighters (ShipNum, CrewCapacity, EngineType, QuantityOH)
-values ('s0008', 1, 'SFS P-s7.2 twin ion', 35);
-
-Insert into Bombers (ShipNum, CrewCapacity, CargoCapTons, EngineType, QuantityOH)
-values ('s0002', 1, 15, 'SFS P-s4 twin ion', 141);
-
-Insert into Bombers (ShipNum, CrewCapacity, CargoCapTons, EngineType, QuantityOH)
-values ('s0005', 2, 3, 'Single SFS P-s4 ion', 35);
-
-Insert into Bombers (ShipNum, CrewCapacity, CargoCapTons, EngineType, QuantityOH)
-values ('s0006', 1, 2, 'single E-16/x ion', 35);
-
+-- Insert data for bases sorted by base --
 
 --Base1--
 Insert into ShipsDocked (ShipNum, BaseID, QuantityOB)
@@ -477,7 +463,7 @@ values ('s0007','B0005',8);
 Insert into ShipsDocked (ShipNum, BaseID, QuantityOB)
 values ('s0008','B0005',0);
 
---Base6--
+--Base6 everything up to an including this adds up properlly----
 Insert into ShipsDocked (ShipNum, BaseID, QuantityOB)
 values ('s0001','B0006',16);
 
@@ -602,62 +588,79 @@ values ('s0007','B0010',3);
 Insert into ShipsDocked (ShipNum, BaseID, QuantityOB)
 values ('s0008','B0010',11);
 
--BaseCrew--
-Insert into BaseCrew (pid, BaseID)
-values ('p00001','B0008');
+-- Insert data for BaseCrew--
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00002','B0010');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00001','B0008','2001-10-31', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00003','B0009');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00002','B0010','2000-06-17', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00004','B0008');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00003','B0009','2003-05-05', '2004-04-23');
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00005','B0005');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00003','B0008','2004-04-23', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00006','B0004');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00004','B0008','2001-10-31', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00007','B0007');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00005','B0005','1999-01-01', '2005-11-03');
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00008','B0001');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00005','B0001','2005-11-10', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00009','B0002');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00006','B0004','1994-08-09', '2010-07-10');
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00010','B0009');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00006','B0008','2010-07-17', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00011','B0003');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00007','B0007','1995-05-01', '2000-05-31');
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00012','B0002');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00007','B0001','2000-06-03', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00013','B0004');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00008','B0001','1989-05-04', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00014','B0008');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00009','B0002','1995-09-03', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00015','B0008');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00010','B0009','2002-12-12', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00016','B0006');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00011','B0003','1990-12-31', NULL);
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00017','B0008');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00012','B0002','1988-04-04', '2003-01-01');
 
-Insert into BaseCrew (pid, BaseID)
-values ('p00018','B0010');
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00012','B0003','2003-01-02', NULL);
 
---Armaments--
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00013','B0004','1989-10-04', NULL);
+
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00014','B0008','1988-09-01', NULL);
+
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00015','B0008','1989-09-01', NULL);
+
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00016','B0006','1989-09-04', NULL);
+
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00017','B0008','1989-09-01', NULL);
+
+Insert into BaseCrew (pid, BaseID, ArrivalDate, DepartureDate)
+values ('p00018','B0010','1999-02-13', NULL);
+
+-- Insert data for amrmaments --
+
 Insert into Armaments (WepID, WName, QuantityOH, CostCredits)
 values ('w001','E-11 blaster rifle', 100, 1000);
 
@@ -688,7 +691,8 @@ values ('w009','Borstel NK-7 ion cannon', 120, 1000);
 Insert into Armaments (WepID, WName, QuantityOH, CostCredits)
 values ('w010','interplanatary laser XS-1', 1, 5000000);
 
---PersonnelWeapons--
+-- Insert data for PersonnelWeapons -- 
+
 Insert into PersonnelWeapons(pid, WepID,  QuantityHeld)
 values ('p00002','w001', 1);
 
@@ -767,7 +771,8 @@ values ('p00018','w005', 1);
 Insert into PersonnelWeapons(pid, WepID,  QuantityHeld)
 values ('p00018','w002', 1);
 
---StationWeapons--
+-- Insert Data for stationweapons -- 
+
 Insert into StationWeapons(StationNum, WepID, QuantityOnBoard)
 values ('00015','w007', 60);
 
@@ -789,7 +794,226 @@ values ('10000','w009', 70);
 Insert into StationWeapons(StationNum, WepID, QuantityOnBoard)
 values ('10000','w010', 1);
 
--- Known Errors 
--- People can't transfer bases, can be fixed by adding a date of arrival, 
--- will be done in a future update.
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00007','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00007','s0003');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00007','s0004');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00007','s0008');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00009','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00009','s0002');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00009','s0005');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00010','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00010','s0003');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00010','s0004');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00010','s0008');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00011','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00011','s0002');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00011','s0006');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00011','s0007');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00012','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00012','s0002');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00012','s0006');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00012','s0007');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0001');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0002');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0003');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0004');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0005');
+
+Insert into QualifiedToFly (pid, ShipNum)
+	Values('p00013','s0006');
+
+-- VIEWS --
+
+-- PersonnelLocation --
+
+CREATE VIEW PersonnelLocation AS
+	SELECT firstname, lastname, name, region, ssystem, sector
+	FROM people, BaseCrew, Bases
+	WHERE people.pid = BaseCrew.pid
+	AND BaseCrew.BaseID = Bases.BaseID
+	AND BaseCrew.departuredate is NULL
+	ORDER BY region;
+
+-- PersonnelWeaponsInventory --
+
+CREATE VIEW PersonellWeaponsInventory AS
+	SELECT Wname, QuantityOH - sum(PersonnelWeapons.quantityheld) as InStock
+	FROM Armaments, PersonnelWeapons
+	WHERE Armaments.WepID = PersonnelWeapons.WepID
+	GROUP BY armaments.Wname, QuantityOH, Armaments.WepID
+	ORDER BY Armaments.WepID;
+
+-- WeaponTracker --
+
+CREATE VIEW WeaponTracker AS
+	SELECT firstname, lastname, WName, QuantityHeld 
+	FROM people
+	INNER JOIN PersonnelWeapons
+	ON people.pid = PersonnelWeapons.pid
+	INNER JOIN Armaments
+	ON PersonnelWeapons.WepID = Armaments.WepID;
+
+
+-- INTERESTING QUERIES --
+
+-- 1. Query to return the number of stormtroopers within the same sector --  
+
+SELECT sector, count(s.pid)
+FROM stormtroopers s
+INNER JOIN BaseCrew bc
+ON s.pid = bc.pid
+INNER JOIN bases b
+ON bc.baseid = b.baseid
+GROUP BY sector
+
+-- 2. Query to return  the number of each weapon  held by stormtroopers --
+
+SELECT Wname, count(s.pid)
+FROM PersonnelWeapons PW
+INNER JOIN Armaments A
+ON A.WepID = PW.WepID
+INNER JOIN stormtroopers s
+ON s.pid = PW.pid
+group by a.wname
+
+-- 3. Query to return  total cost of ships docked (in credits) --
+
+SELECT sum(costCREDITS*QuantityOB)
+from Ships, ShipsDocked
+where Ships.ShipNum = ShipsDocked.ShipNum
+
+-- 4. Query to return % of pilots who have been flying for more than 20 years --
+
+SELECT TRUNC (
+	   CAST(
+		       ( select count(pilots.pid)
+		         from people, pilots
+		         where people.pid = pilots.pid
+		         and (date_part('year', age(firstflight)))>20
+		       )as decimal
+		      )
+	              /
+	            ( select count(pilots.pid)
+		      from pilots
+		      )
+		    *100
+		  ) as Percent_Over20
+
+-- stored procedures --
+
+-- 1. Function gives stormtroopers who are riflemen one EF-11 Blaster and one  SE14-r repeating blaster --
+
+
+CREATE OR REPLACE FUNCTION add_PersonnelWeapons() RETURNS trigger AS
+	$BODY$
+			BEGIN
+					IF NEW.squadrole = 'rifleman' THEN
+						INSERT INTO PersonnelWeapons (pid, WepID, QuantityHeld) 
+						VALUES (NEW.pid, 'w001', 1);
+						INSERT INTO PersonnelWeapons (pid, WepID, QuantityHeld) 
+						VALUES (NEW.pid, 'w002', 1);
+					END IF;
+				RETURN NEW;
+			END;
+	$BODY$
+LANGUAGE plpgsql;
+
+-- 2. Function returns galactic address given a BaseID --
+
+
+CREATE OR REPLACE FUNCTION BaseLocation (IN BaseID varchar(5))
+RETURNS TABLE ("region" text,"sector" text,"ssystem" text, "name" text) AS
+$BODY$
+		BEGIN
+				RETURN QUERY SELECT Bases.region as region, Bases.sector as sector, 
+										Bases.ssystem as ssystem, Bases.name as name
+								FROM Bases
+								WHERE Bases.BaseID = BaseLocation.BaseID;
+		END;
+$BODY$
+LANGUAGE plpgsql;
+
+-- Triggers --
+
+CREATE TRIGGER add_PersonnelWeapons
+AFTER INSERT ON Stormtroopers
+FOR EACH ROW 
+EXECUTE PROCEDURE add_PersonnelWeapons();
+
+-- Security --
+
+--admin--
+
+CREATE ROLE admin;
+GRANT ALL ON ALL TABLES
+IN SCHEMA PUBLIC
+TO admin;
+
+--ArmoryClerks--
+
+CREATE ROLE Armory;
+GRANT SELECT ON ALL TABLES
+IN SCHEMA PUBLIC
+TO Armory;
+GRANT INSERT ON Armaments
+TO Armory;
+GRANT UPDATE ON Armaments, PersonnelWeapons, StationWeapons
+TO Armory;
+
+
+
+
+
+
+
+
+
+
 
